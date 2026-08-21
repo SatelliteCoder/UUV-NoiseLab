@@ -3,91 +3,353 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>UUV 目标辐射噪声仿真</title>
+    <title>UUV 目标辐射噪声仿真平台</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   </head>
   <body>
-    <main class="app">
-      <section class="panel control-panel" aria-label="仿真参数">
-        <div class="brand-row">
-          <div>
-            <h1>UUV 目标辐射噪声仿真</h1>
-            <p>半经验点/线/面/体等效声源，本地 MATLAB 计算内核</p>
+    <div class="app">
+      <!-- 顶部导航 -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="logo">
+            <svg viewBox="0 0 32 32" fill="none">
+              <rect x="3" y="9" width="26" height="14" rx="4" fill="url(#grad1)" opacity="0.9"/>
+              <path d="M8 15h16v2H8z" fill="#fff" opacity="0.85"/>
+              <path d="M11 12h2v8h-2zm12 0h2v8h-2z" fill="#fff" opacity="0.5"/>
+              <defs>
+                <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#3b82f6"/>
+                  <stop offset="100%" stop-color="#1d4ed8"/>
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
-          <span id="healthBadge" class="badge">检测中</span>
+          <div class="brand">
+            <h1>UUV 目标辐射噪声仿真平台</h1>
+            <span>Underwater Radiated Noise Simulation</span>
+          </div>
         </div>
+        <div class="topbar-right">
+          <div class="status-chip" id="healthChip">
+            <span class="status-dot"></span>
+            <span class="status-text">检测中</span>
+          </div>
+          <button class="icon-btn" id="refreshBtn" title="刷新">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/>
+              <path d="M3 8v5h5"/>
+              <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/>
+              <path d="M21 16v-5h-5"/>
+            </svg>
+          </button>
+        </div>
+      </header>
 
-        <form id="simForm" class="form-grid">
-          <fieldset class="full">
-            <legend>等效声源</legend>
-            <div class="segmented" id="sourceSelector">
-              <button type="button" class="active" data-source="point">点源</button>
-              <button type="button" data-source="line">线源</button>
-              <button type="button" data-source="surface">面源</button>
-              <button type="button" data-source="volume">体源</button>
-              <button type="button" data-source="all">全部四类</button>
+      <!-- 主体两栏 -->
+      <main class="main">
+        <!-- 左侧：参数配置 -->
+        <section class="panel config-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              <h2>参数配置</h2>
             </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>UUV 参数</legend>
-            <label>艇长 m<input id="length_m" type="number" value="3.2" step="0.1" min="0.3" /></label>
-            <label>直径 m<input id="diameter_m" type="number" value="0.45" step="0.01" min="0.05" /></label>
-            <label>深度 m<input id="depth_m" type="number" value="50" step="1" min="1" /></label>
-            <label>航速 m/s<input id="speed_mps" type="number" value="3" step="0.1" min="0" /></label>
-            <label>转速 rpm<input id="rpm" type="number" value="720" step="10" min="10" /></label>
-            <label>桨叶数<input id="blade_count" type="number" value="4" step="1" min="2" /></label>
-            <label>桨径 m<input id="propeller_diameter_m" type="number" value="0.24" step="0.01" min="0.03" /></label>
-          </fieldset>
-
-          <fieldset>
-            <legend>采样与接收</legend>
-            <label>采样率 Hz<input id="fs" type="number" value="24000" step="1000" min="8000" /></label>
-            <label>时长 s<input id="duration_s" type="number" value="4" step="1" min="1" /></label>
-            <label>随机种子<input id="random_seed" type="number" value="20260817" step="1" min="1" /></label>
-            <label>接收 x m<input id="receiver_x_m" type="number" value="600" step="10" /></label>
-            <label>接收 y m<input id="receiver_y_m" type="number" value="160" step="10" /></label>
-            <label>接收 z m<input id="receiver_z_m" type="number" value="-45" step="1" /></label>
-          </fieldset>
-
-          <fieldset>
-            <legend>离散源数量</legend>
-            <label>线源点数<input id="line_elements" type="number" value="21" step="2" min="3" /></label>
-            <label>面源轴向<input id="surface_axial_elements" type="number" value="10" step="1" min="3" /></label>
-            <label>面源周向<input id="surface_circum_elements" type="number" value="8" step="1" min="4" /></label>
-            <label>体源轴向<input id="volume_axial_elements" type="number" value="6" step="1" min="3" /></label>
-            <label>体源径向<input id="volume_radial_elements" type="number" value="2" step="1" min="1" /></label>
-            <label>体源周向<input id="volume_circum_elements" type="number" value="8" step="1" min="4" /></label>
-          </fieldset>
-
-          <fieldset>
-            <legend>背景预览</legend>
-            <label class="check-row"><input id="ambient_enabled" type="checkbox" checked /> 接收混合信号叠加背景噪声</label>
-            <label>背景 RMS uPa<input id="ambient_rms_uPa" type="number" value="800" step="50" min="0" /></label>
-            <label>背景谱斜率 dB/dec<input id="ambient_slope_db_decade" type="number" value="-17" step="1" /></label>
-          </fieldset>
-
-          <div class="actions full">
-            <button id="runButton" class="primary" type="submit">运行仿真</button>
-            <span id="statusText" class="status-text">未运行</span>
+            <span class="run-badge" id="runBadge">未运行</span>
           </div>
-        </form>
-      </section>
 
-      <section class="panel result-panel" aria-label="仿真结果">
-        <div class="result-head">
-          <div>
-            <h2>结果</h2>
-            <p id="resultSubtitle">选择声源类型后运行，结果会保存在本地 jobs 目录。</p>
+          <form id="simForm" class="config-body">
+            <!-- 声源类型选择 -->
+            <div class="config-block">
+              <div class="block-label">等效声源类型</div>
+              <div class="source-selector">
+                <button type="button" class="source-btn active" data-source="point">
+                  <span class="source-icon">●</span>
+                  <span class="source-name">点源</span>
+                </button>
+                <button type="button" class="source-btn" data-source="line">
+                  <span class="source-icon">━</span>
+                  <span class="source-name">线源</span>
+                </button>
+                <button type="button" class="source-btn" data-source="surface">
+                  <span class="source-icon">▭</span>
+                  <span class="source-name">面源</span>
+                </button>
+                <button type="button" class="source-btn" data-source="volume">
+                  <span class="source-icon">⬚</span>
+                  <span class="source-name">体源</span>
+                </button>
+                <button type="button" class="source-btn all" data-source="all">
+                  <span class="source-icon">✦</span>
+                  <span class="source-name">全部四类</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="config-grid">
+              <!-- UUV 几何与推进 -->
+              <div class="config-block">
+                <div class="block-label">UUV 参数</div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label>艇长 (m)</label>
+                    <input type="number" id="length_m" value="3.2" step="0.1" />
+                  </div>
+                  <div class="field">
+                    <label>直径 (m)</label>
+                    <input type="number" id="diameter_m" value="0.45" step="0.01" />
+                  </div>
+                  <div class="field">
+                    <label>深度 (m)</label>
+                    <input type="number" id="depth_m" value="50" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>航速 (m/s)</label>
+                    <input type="number" id="speed_mps" value="3" step="0.1" />
+                  </div>
+                  <div class="field">
+                    <label>转速 (rpm)</label>
+                    <input type="number" id="rpm" value="720" step="10" />
+                  </div>
+                  <div class="field">
+                    <label>桨叶数</label>
+                    <input type="number" id="blade_count" value="4" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>桨径 (m)</label>
+                    <input type="number" id="propeller_diameter_m" value="0.24" step="0.01" />
+                  </div>
+                  <div class="field">
+                    <label>螺距 (m)</label>
+                    <input type="number" id="propeller_pitch_m" value="0.18" step="0.01" />
+                  </div>
+                  <div class="field full">
+                    <label>排水量 (t)</label>
+                    <input type="number" id="displacement_t" value="1.2" step="0.1" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- 采样与接收 -->
+              <div class="config-block">
+                <div class="block-label">采样与接收</div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label>采样率 (Hz)</label>
+                    <input type="number" id="fs" value="24000" step="1000" />
+                  </div>
+                  <div class="field">
+                    <label>时长 (s)</label>
+                    <input type="number" id="duration_s" value="4" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>随机种子</label>
+                    <input type="number" id="random_seed" value="20260817" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>接收 X (m)</label>
+                    <input type="number" id="receiver_x_m" value="600" step="10" />
+                  </div>
+                  <div class="field">
+                    <label>接收 Y (m)</label>
+                    <input type="number" id="receiver_y_m" value="160" step="10" />
+                  </div>
+                  <div class="field">
+                    <label>接收 Z (m)</label>
+                    <input type="number" id="receiver_z_m" value="-45" step="1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="config-grid">
+              <!-- 离散源数量 -->
+              <div class="config-block">
+                <div class="block-label">离散源数量</div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label>线源点数</label>
+                    <input type="number" id="line_elements" value="21" step="2" />
+                  </div>
+                  <div class="field">
+                    <label>面源轴向</label>
+                    <input type="number" id="surface_axial_elements" value="10" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>面源周向</label>
+                    <input type="number" id="surface_circum_elements" value="8" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>体源轴向</label>
+                    <input type="number" id="volume_axial_elements" value="6" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>体源径向</label>
+                    <input type="number" id="volume_radial_elements" value="2" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>体源周向</label>
+                    <input type="number" id="volume_circum_elements" value="8" step="1" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- 背景噪声 -->
+              <div class="config-block">
+                <div class="block-label">背景噪声</div>
+                <div class="toggle-row">
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="ambient_enabled" checked />
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-label">叠加背景噪声</span>
+                  </label>
+                </div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label>背景 RMS (μPa)</label>
+                    <input type="number" id="ambient_rms_uPa" value="800" step="50" />
+                  </div>
+                  <div class="field">
+                    <label>背景斜率 (dB/dec)</label>
+                    <input type="number" id="ambient_slope_db_decade" value="-17" step="1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="config-footer">
+              <button type="submit" class="run-button" id="runButton">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="6 4 20 12 6 20 6 4"/>
+                </svg>
+                开始仿真
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- 右侧：结果展示 -->
+        <section class="panel result-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M3 9h18M9 21V9"/>
+              </svg>
+              <h2>仿真结果</h2>
+            </div>
+            <span class="result-meta" id="resultMeta">等待运行</span>
           </div>
-          <a id="jobFolderLink" class="ghost-link hidden" href="#">当前任务文件</a>
-        </div>
-        <div id="resultArea" class="empty-state">
-          <strong>等待仿真</strong>
-          <span>默认只运行点源；选择“全部四类”时才会依次生成四类结果。</span>
-        </div>
-      </section>
-    </main>
+
+          <!-- 结果标签页 -->
+          <div class="result-tabs" id="resultTabs">
+            <button class="tab-btn active" data-tab="overview">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M3 9h18M9 21V9"/>
+              </svg>
+              总览
+            </button>
+            <button class="tab-btn" data-tab="spectrum">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/>
+                <path d="M7 14l4-4 4 4 5-5"/>
+              </svg>
+              源级谱
+            </button>
+            <button class="tab-btn" data-tab="waveform">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+              时域波形
+            </button>
+            <button class="tab-btn" data-tab="lofar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="2"/>
+                <path d="M2 12h20M12 2v20" opacity="0.3"/>
+              </svg>
+              LOFAR
+            </button>
+            <button class="tab-btn" data-tab="demon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+              </svg>
+              DEMON
+            </button>
+            <button class="tab-btn" data-tab="geometry">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              </svg>
+              三维几何
+            </button>
+            <button class="tab-btn" data-tab="audio">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18V5l12-2v13"/>
+                <circle cx="6" cy="18" r="3"/>
+                <circle cx="18" cy="16" r="3"/>
+              </svg>
+              音频
+            </button>
+            <button class="tab-btn" data-tab="files">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              文件
+            </button>
+          </div>
+
+          <!-- 结果内容 -->
+          <div class="result-body">
+            <div class="result-pane active" data-pane="overview">
+              <div class="empty-state">
+                <div class="empty-icon">
+                  <svg viewBox="0 0 120 120" fill="none">
+                    <circle cx="60" cy="60" r="50" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.2"/>
+                    <circle cx="60" cy="60" r="36" stroke="currentColor" stroke-width="1.5" opacity="0.15"/>
+                    <circle cx="60" cy="60" r="22" fill="currentColor" opacity="0.1"/>
+                    <path d="M52 55l6 8 12-14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+                  </svg>
+                </div>
+                <h3>等待仿真开始</h3>
+                <p>配置左侧参数后，点击"开始仿真"按钮运行计算</p>
+              </div>
+            </div>
+            <div class="result-pane" data-pane="spectrum">
+              <div class="empty-state simple"><h4>源级谱</h4><p>运行仿真后展示频谱分析结果</p></div>
+            </div>
+            <div class="result-pane" data-pane="waveform">
+              <div class="empty-state simple"><h4>时域波形</h4><p>运行仿真后展示时域波形图</p></div>
+            </div>
+            <div class="result-pane" data-pane="lofar">
+              <div class="empty-state simple"><h4>LOFAR 谱</h4><p>运行仿真后展示 LOFAR 分析结果</p></div>
+            </div>
+            <div class="result-pane" data-pane="demon">
+              <div class="empty-state simple"><h4>DEMON 谱</h4><p>运行仿真后展示 DEMON 分析结果</p></div>
+            </div>
+            <div class="result-pane" data-pane="geometry">
+              <div class="geometry3d-wrap">
+                <div id="geometry3dContainer" class="geometry3d-container"></div>
+                <div class="geometry3d-info" id="geometry3dInfo">
+                  <span>运行仿真后展示三维等效源几何分布</span>
+                </div>
+              </div>
+            </div>
+            <div class="result-pane" data-pane="audio">
+              <div class="empty-state simple"><h4>音频试听</h4><p>运行仿真后可试听生成的噪声信号</p></div>
+            </div>
+            <div class="result-pane" data-pane="files">
+              <div class="empty-state simple"><h4>输出文件</h4><p>运行仿真后可下载各类输出文件</p></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
 
     <script src="/app.js"></script>
   </body>

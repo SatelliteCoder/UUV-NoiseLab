@@ -32,3 +32,4 @@ matlab_model/output/
 Thumbs.db
 .vscode/
 .idea/
+.playwright-cli/
