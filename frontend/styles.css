@@ -138,7 +138,7 @@ svg { display: block; }
 .main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(420px, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: 220px minmax(0, 1fr) minmax(390px, 0.72fr);
   gap: 20px;
   padding: 20px 24px;
   overflow: hidden;
@@ -165,6 +165,10 @@ svg { display: block; }
   align-items: center;
   flex-shrink: 0;
   background: linear-gradient(to bottom, #fafbfc, #ffffff);
+}
+
+.panel-header.compact {
+  padding: 14px 16px;
 }
 
 .panel-title {
@@ -216,8 +220,84 @@ svg { display: block; }
 }
 
 /* ===== Config Panel ===== */
-.config-panel {
+.module-panel {
   min-width: 0;
+}
+
+.module-list {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.module-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-height: 92px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.module-btn:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.module-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.module-icon {
+  display: inline-flex;
+  height: 24px;
+  min-width: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: #dbeafe;
+  color: #1e40af;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.module-icon.sea {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.module-btn strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.module-btn small {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.config-panel {
+  order: 3;
+  min-width: 0;
+}
+
+.result-panel {
+  order: 2;
+}
+
+.module-panel {
+  order: 1;
 }
 
 .config-body {
@@ -243,6 +323,10 @@ svg { display: block; }
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 12px 14px;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .block-label {
@@ -423,6 +507,52 @@ svg { display: block; }
 
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(16px);
+}
+
+.noise-check-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.check-card {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.check-card:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.check-card input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: #2563eb;
+}
+
+.check-card strong {
+  display: block;
+  font-size: 12px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.check-card small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #64748b;
 }
 
 /* Config Footer */

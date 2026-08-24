@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from uuv_noise.environment import COMPONENT_LABELS, run_environment_case
 from uuv_noise.simulation import SOURCE_LABELS, run_case
 
 
@@ -24,6 +25,7 @@ JOBS_DIR = ROOT_DIR / "jobs"
 RUNTIME_DIR = ROOT_DIR / "runtime"
 SOURCE_TYPES = ("point", "line", "surface", "volume")
 SOURCE_LABELS = {**SOURCE_LABELS, "all": "全部四类"}
+MODULE_LABELS = {"target": "UUV辐射噪声", "environment": "海洋背景噪声"}
 
 
 def now_iso() -> str:
@@ -61,6 +63,9 @@ def nested(data: dict, key: str) -> dict:
 
 
 def normalize_config(data: dict) -> dict:
+    module = str(data.get("module", "target")).strip().lower()
+    if module not in MODULE_LABELS:
+        module = "target"
     raw_source_type = str(data.get("source_type", "point")).strip().lower()
     if raw_source_type not in (*SOURCE_TYPES, "all"):
         raw_source_type = "point"
@@ -69,9 +74,12 @@ def normalize_config(data: dict) -> dict:
     source = nested(data, "source")
     receiver = nested(data, "receiver")
     ambient = nested(data, "ambient")
+    environment = nested(data, "environment")
+    env_components = nested(environment, "components")
     prop_d = clamp_number(uuv.get("propeller_diameter_m"), 0.24, 0.03, 5.0)
 
     return {
+        "module": module,
         "source_type": raw_source_type,
         "fs": clamp_int(data.get("fs"), 24000, 8000, 96000),
         "duration_s": clamp_number(data.get("duration_s"), 4.0, 1.0, 60.0),
@@ -106,6 +114,18 @@ def normalize_config(data: dict) -> dict:
             "rms_uPa": clamp_number(ambient.get("rms_uPa"), 800.0, 0.0, 100000.0),
             "slope_db_decade": clamp_number(ambient.get("slope_db_decade"), -17.0, -40.0, 10.0),
         },
+        "environment": {
+            "components": {
+                "wind": bool(env_components.get("wind", True)),
+                "shipping": bool(env_components.get("shipping", True)),
+                "rain": bool(env_components.get("rain", False)),
+                "thermal": bool(env_components.get("thermal", True)),
+            },
+            "wind_speed_mps": clamp_number(environment.get("wind_speed_mps"), 8.0, 0.0, 40.0),
+            "shipping_activity": clamp_number(environment.get("shipping_activity"), 0.7, 0.0, 1.0),
+            "rain_rate_mm_h": clamp_number(environment.get("rain_rate_mm_h"), 0.0, 0.0, 200.0),
+            "gain_db": clamp_number(environment.get("gain_db"), 0.0, -60.0, 60.0),
+        },
         "propagation": {
             "sound_speed_mps": 1500.0,
         },
@@ -122,6 +142,7 @@ def add_urls_to_case(job_id: str, case_summary: dict, case_folder: str) -> dict:
 
 def summarize_job(job: dict) -> dict:
     cases = job.get("cases") if isinstance(job.get("cases"), list) else []
+    module = str(job.get("config", {}).get("module", "target"))
     mode = str(job.get("config", {}).get("source_type", "point"))
     latest_case = cases[-1] if cases else {}
     return {
@@ -133,8 +154,10 @@ def summarize_job(job: dict) -> dict:
         "started_at": job.get("started_at"),
         "finished_at": job.get("finished_at"),
         "engine": job.get("engine", "python"),
+        "module": module,
+        "module_label": MODULE_LABELS.get(module, module),
         "mode": mode,
-        "mode_label": SOURCE_LABELS.get(mode, mode),
+        "mode_label": "海洋背景噪声" if module == "environment" else SOURCE_LABELS.get(mode, mode),
         "case_count": len(cases),
         "current_case": job.get("current_case"),
         "latest_case_label": latest_case.get("source_type_label"),
@@ -180,21 +203,46 @@ def run_python_case(job_id: str, case_type: str, base_config: dict, case_output_
     return add_urls_to_case(job_id, summary, case_folder)
 
 
+def run_environment_job_case(job_id: str, base_config: dict, case_output_dir: Path) -> dict:
+    started = time.time()
+    case_output_dir.mkdir(parents=True, exist_ok=True)
+    log_path = case_output_dir / "run.log"
+    selected = [
+        COMPONENT_LABELS[name]
+        for name, enabled in base_config["environment"]["components"].items()
+        if enabled
+    ]
+    log_path.write_text(
+        f"Ocean environment noise simulation started at {now_iso()}\nComponents: {', '.join(selected) or 'none'}\n",
+        encoding="utf-8",
+    )
+    summary = run_environment_case(base_config, case_output_dir)
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(f"Finished at {now_iso()}\n")
+    summary["elapsed_s"] = round(time.time() - started, 2)
+    return add_urls_to_case(job_id, summary, "")
+
+
 def run_job(job_id: str) -> None:
     job_dir = JOBS_DIR / job_id
     try:
         config = read_json(job_dir / "input_config.json")
         update_job(job_id, {"status": "running", "started_at": now_iso(), "message": "Python 正在计算"})
 
-        requested = config["source_type"]
-        case_types = SOURCE_TYPES if requested == "all" else (requested,)
         cases = []
-        for index, case_type in enumerate(case_types, start=1):
-            update_job(job_id, {"message": f"正在运行 {SOURCE_LABELS[case_type]} ({index}/{len(case_types)})", "current_case": case_type})
-            case_output_dir = job_dir / case_type if requested == "all" else job_dir
-            cases.append(run_python_case(job_id, case_type, config, case_output_dir))
+        if config.get("module") == "environment":
+            update_job(job_id, {"message": "正在运行海洋背景噪声", "current_case": "environment"})
+            cases.append(run_environment_job_case(job_id, config, job_dir))
+            requested = "environment"
+        else:
+            requested = config["source_type"]
+            case_types = SOURCE_TYPES if requested == "all" else (requested,)
+            for index, case_type in enumerate(case_types, start=1):
+                update_job(job_id, {"message": f"正在运行 {SOURCE_LABELS[case_type]} ({index}/{len(case_types)})", "current_case": case_type})
+                case_output_dir = job_dir / case_type if requested == "all" else job_dir
+                cases.append(run_python_case(job_id, case_type, config, case_output_dir))
 
-        write_json(job_dir / "web_job_summary.json", {"job_id": job_id, "mode": requested, "mode_label": SOURCE_LABELS.get(requested, requested), "engine": "python", "finished_at": now_iso(), "cases": cases})
+        write_json(job_dir / "web_job_summary.json", {"job_id": job_id, "module": config.get("module", "target"), "mode": requested, "mode_label": SOURCE_LABELS.get(requested, requested), "engine": "python", "finished_at": now_iso(), "cases": cases})
         update_job(job_id, {"status": "succeeded", "finished_at": now_iso(), "message": "仿真完成", "engine": "python", "cases": cases})
     except Exception as exc:
         update_job(job_id, {"status": "failed", "finished_at": now_iso(), "message": str(exc), "engine": "python"})

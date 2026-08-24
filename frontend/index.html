@@ -49,6 +49,33 @@
 
       <!-- 主体两栏 -->
       <main class="main">
+        <!-- 左侧：模块选择 -->
+        <section class="panel module-panel">
+          <div class="panel-header compact">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              <h2>模块</h2>
+            </div>
+          </div>
+          <div class="module-list">
+            <button type="button" class="module-btn active" data-module="target">
+              <span class="module-icon">UUV</span>
+              <strong>UUV辐射噪声</strong>
+              <small>点/线/面/体等效声源</small>
+            </button>
+            <button type="button" class="module-btn" data-module="environment">
+              <span class="module-icon sea">ENV</span>
+              <strong>海洋背景噪声</strong>
+              <small>风浪/航运/雨/热噪声</small>
+            </button>
+          </div>
+        </section>
+
         <!-- 左侧：参数配置 -->
         <section class="panel config-panel">
           <div class="panel-header">
@@ -57,14 +84,14 @@
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
               </svg>
-              <h2>参数配置</h2>
+              <h2 id="configTitle">UUV 参数配置</h2>
             </div>
             <span class="run-badge" id="runBadge">未运行</span>
           </div>
 
           <form id="simForm" class="config-body">
             <!-- 声源类型选择 -->
-            <div class="config-block">
+            <div class="config-block target-config">
               <div class="block-label">等效声源类型</div>
               <div class="source-selector">
                 <button type="button" class="source-btn active" data-source="point">
@@ -92,7 +119,7 @@
 
             <div class="config-grid">
               <!-- UUV 几何与推进 -->
-              <div class="config-block">
+              <div class="config-block target-config">
                 <div class="block-label">UUV 参数</div>
                 <div class="field-grid">
                   <div class="field">
@@ -135,7 +162,7 @@
               </div>
 
               <!-- 采样与接收 -->
-              <div class="config-block">
+              <div class="config-block target-config">
                 <div class="block-label">采样与接收</div>
                 <div class="field-grid">
                   <div class="field">
@@ -168,7 +195,7 @@
 
             <div class="config-grid">
               <!-- 离散源数量 -->
-              <div class="config-block">
+              <div class="config-block target-config">
                 <div class="block-label">离散源数量</div>
                 <div class="field-grid">
                   <div class="field">
@@ -199,7 +226,7 @@
               </div>
 
               <!-- 背景噪声 -->
-              <div class="config-block">
+              <div class="config-block target-config">
                 <div class="block-label">背景噪声</div>
                 <div class="toggle-row">
                   <label class="toggle-switch">
@@ -216,6 +243,81 @@
                   <div class="field">
                     <label>背景斜率 (dB/dec)</label>
                     <input type="number" id="ambient_slope_db_decade" value="-17" step="1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="config-block environment-config hidden">
+              <div class="block-label">环境噪声分量</div>
+              <div class="noise-check-grid">
+                <label class="check-card">
+                  <input type="checkbox" id="env_wind_enabled" checked />
+                  <span>
+                    <strong>风浪噪声</strong>
+                    <small>海面风浪诱发的宽带背景噪声</small>
+                  </span>
+                </label>
+                <label class="check-card">
+                  <input type="checkbox" id="env_shipping_enabled" checked />
+                  <span>
+                    <strong>航运噪声</strong>
+                    <small>近海航道船舶交通背景</small>
+                  </span>
+                </label>
+                <label class="check-card">
+                  <input type="checkbox" id="env_rain_enabled" />
+                  <span>
+                    <strong>雨噪声</strong>
+                    <small>降雨冲击海面的中高频噪声</small>
+                  </span>
+                </label>
+                <label class="check-card">
+                  <input type="checkbox" id="env_thermal_enabled" checked />
+                  <span>
+                    <strong>热噪声</strong>
+                    <small>高频段分子热运动噪声底</small>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="config-grid environment-config hidden">
+              <div class="config-block">
+                <div class="block-label">海况参数</div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label>风速 (m/s)</label>
+                    <input type="number" id="env_wind_speed_mps" value="8" step="0.5" />
+                  </div>
+                  <div class="field">
+                    <label>航运强度 (0-1)</label>
+                    <input type="number" id="env_shipping_activity" value="0.7" step="0.1" />
+                  </div>
+                  <div class="field">
+                    <label>雨强 (mm/h)</label>
+                    <input type="number" id="env_rain_rate_mm_h" value="0" step="1" />
+                  </div>
+                  <div class="field">
+                    <label>整体增益 (dB)</label>
+                    <input type="number" id="env_gain_db" value="0" step="1" />
+                  </div>
+                </div>
+              </div>
+              <div class="config-block">
+                <div class="block-label">采样设置</div>
+                <div class="field-grid">
+                  <div class="field">
+                    <label>采样率 (Hz)</label>
+                    <input type="number" id="env_fs" value="24000" step="1000" />
+                  </div>
+                  <div class="field">
+                    <label>时长 (s)</label>
+                    <input type="number" id="env_duration_s" value="4" step="1" />
+                  </div>
+                  <div class="field full">
+                    <label>随机种子</label>
+                    <input type="number" id="env_random_seed" value="20260824" step="1" />
                   </div>
                 </div>
               </div>

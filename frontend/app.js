@@ -6,7 +6,13 @@ const sourceLabels = {
   all: "全部四类",
 };
 
+const moduleLabels = {
+  target: "UUV辐射噪声",
+  environment: "海洋背景噪声",
+};
+
 const state = {
+  selectedModule: "target",
   selectedSource: "point",
   selectedResultTab: "overview",
   currentJob: null,
@@ -33,6 +39,26 @@ function statusLabel(s) {
 }
 
 /* ===== Source Selection ===== */
+function setModule(moduleName) {
+  state.selectedModule = moduleName;
+  document.querySelectorAll(".module-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.module === moduleName);
+  });
+  document.querySelectorAll(".target-config").forEach((el) => {
+    el.classList.toggle("hidden", moduleName !== "target");
+  });
+  document.querySelectorAll(".environment-config").forEach((el) => {
+    el.classList.toggle("hidden", moduleName !== "environment");
+  });
+  $("configTitle").textContent = moduleName === "environment" ? "海洋背景噪声配置" : "UUV 参数配置";
+}
+
+function bindModuleButtons() {
+  document.querySelectorAll(".module-btn").forEach((btn) => {
+    btn.addEventListener("click", () => setModule(btn.dataset.module));
+  });
+}
+
 function setSource(src) {
   state.selectedSource = src;
   document.querySelectorAll(".source-btn").forEach((btn) => {
@@ -84,7 +110,29 @@ async function checkHealth() {
 
 /* ===== Collect Config ===== */
 function collectConfig() {
+  if (state.selectedModule === "environment") {
+    return {
+      module: "environment",
+      fs: num("env_fs"),
+      duration_s: num("env_duration_s"),
+      random_seed: num("env_random_seed"),
+      environment: {
+        components: {
+          wind: $("env_wind_enabled").checked,
+          shipping: $("env_shipping_enabled").checked,
+          rain: $("env_rain_enabled").checked,
+          thermal: $("env_thermal_enabled").checked,
+        },
+        wind_speed_mps: num("env_wind_speed_mps"),
+        shipping_activity: num("env_shipping_activity"),
+        rain_rate_mm_h: num("env_rain_rate_mm_h"),
+        gain_db: num("env_gain_db"),
+      },
+    };
+  }
+
   return {
+    module: "target",
     source_type: state.selectedSource,
     fs: num("fs"),
     duration_s: num("duration_s"),
@@ -127,6 +175,7 @@ function fileUrl(c, k) {
 }
 
 function renderOverview(caseData) {
+  if (caseData.module === "environment") return renderEnvironmentOverview(caseData);
   const f = caseData.features || {};
   const m = caseData.metrics || {};
   const g = caseData.geometry || {};
@@ -151,6 +200,29 @@ function renderOverview(caseData) {
   `;
 }
 
+function renderEnvironmentOverview(caseData) {
+  const f = caseData.features || {};
+  const m = caseData.metrics || {};
+  const components = Array.isArray(caseData.noise_components) && caseData.noise_components.length
+    ? caseData.noise_components.join("、")
+    : "未选择";
+  return `
+    <div class="metric-row">
+      <div class="metric-box"><span>风速</span><strong>${fmt(f.wind_speed_mps)} m/s</strong></div>
+      <div class="metric-box"><span>航运强度</span><strong>${fmt(f.shipping_activity)}</strong></div>
+      <div class="metric-box"><span>雨强</span><strong>${fmt(f.rain_rate_mm_h)} mm/h</strong></div>
+      <div class="metric-box"><span>混合 RMS</span><strong>${fmt(m.mix_rms_uPa)} μPa</strong></div>
+    </div>
+    ${fileUrl(caseData, "summary_png") ? `<div class="result-image"><img src="${fileUrl(caseData, "summary_png")}" alt="海洋背景噪声总览" /></div>` : ""}
+    <div class="overview-note">
+      当前输出为海洋环境背景噪声，已选择：${components}。<br/>
+      每类噪声独立生成 WAV，另输出总混合 WAV、频谱 CSV、时域 CSV 与 NPZ 结果。
+      <br/><br/>
+      主导分量：<strong>${m.peak_component || "-"}</strong> · 耗时 <strong>${fmt(caseData.elapsed_s, 1)} s</strong>
+    </div>
+  `;
+}
+
 function renderImagePane(caseData, key) {
   const url = fileUrl(caseData, key);
   if (!url) return `<div class="empty-state simple"><h4>暂无图片</h4><p>该结果暂不可用</p></div>`;
@@ -158,6 +230,22 @@ function renderImagePane(caseData, key) {
 }
 
 function renderAudioPane(caseData) {
+  if (caseData.module === "environment") {
+    const items = [
+      ["环境噪声混合", fileUrl(caseData, "mix_wav")],
+      ["风浪噪声", fileUrl(caseData, "wind_wav")],
+      ["航运噪声", fileUrl(caseData, "shipping_wav")],
+      ["雨噪声", fileUrl(caseData, "rain_wav")],
+      ["热噪声", fileUrl(caseData, "thermal_wav")],
+    ].filter(([, u]) => u);
+    return items.map(([title, url]) => `
+      <div class="audio-item">
+        <span>${title}</span>
+        <audio controls src="${url}"></audio>
+      </div>
+    `).join("");
+  }
+
   const items = [
     ["1 m 等效源信号", fileUrl(caseData, "source_wav")],
     ["传播后目标预览", fileUrl(caseData, "received_target_wav")],
@@ -175,6 +263,20 @@ function renderAudioPane(caseData) {
 }
 
 function renderFilesPane(caseData) {
+  if (caseData.module === "environment") {
+    const items = [
+      ["频谱 CSV", fileUrl(caseData, "spectrum_csv")],
+      ["时域 CSV", fileUrl(caseData, "timeseries_csv")],
+      ["NPZ 结果", fileUrl(caseData, "npz_result")],
+      ["说明 TXT", fileUrl(caseData, "description_txt")],
+      ["运行日志", fileUrl(caseData, "log_file")],
+    ].filter(([, u]) => u);
+    if (!items.length) return `<div class="empty-state simple"><h4>暂无文件</h4><p>运行仿真后可下载</p></div>`;
+    return `<div class="file-grid">${items.map(([t, u]) => `
+      <a class="file-item" href="${u}" target="_blank" rel="noreferrer">${t}</a>
+    `).join("")}</div>`;
+  }
+
   const items = [
     ["源级谱 CSV", fileUrl(caseData, "spectrum_csv")],
     ["线谱表 CSV", fileUrl(caseData, "tones_csv")],
@@ -468,8 +570,8 @@ function fillResultPanes(job) {
     overview: firstCase ? renderOverview(firstCase) : emptyHtml("等待仿真开始", "配置左侧参数后，点击\"开始仿真\"按钮运行计算"),
     spectrum: firstCase ? renderImagePane(firstCase, "spectrum_png") : `<div class="empty-state simple"><h4>源级谱</h4><p>运行仿真后展示频谱分析结果</p></div>`,
     waveform: firstCase ? renderImagePane(firstCase, "waveforms_png") : `<div class="empty-state simple"><h4>时域波形</h4><p>运行仿真后展示时域波形图</p></div>`,
-    lofar: firstCase ? renderImagePane(firstCase, "lofar_png") : `<div class="empty-state simple"><h4>LOFAR 谱</h4><p>运行仿真后展示 LOFAR 分析结果</p></div>`,
-    demon: firstCase ? renderImagePane(firstCase, "demon_png") : `<div class="empty-state simple"><h4>DEMON 谱</h4><p>运行仿真后展示 DEMON 分析结果</p></div>`,
+    lofar: firstCase && firstCase.module !== "environment" ? renderImagePane(firstCase, "lofar_png") : firstCase ? renderImagePane(firstCase, "spectrogram_png") : `<div class="empty-state simple"><h4>LOFAR / 谱图</h4><p>运行仿真后展示时频分析结果</p></div>`,
+    demon: firstCase && firstCase.module !== "environment" ? renderImagePane(firstCase, "demon_png") : firstCase ? `<div class="empty-state simple"><h4>DEMON 不适用于背景噪声</h4><p>环境背景噪声请查看频谱、波形和时频谱</p></div>` : `<div class="empty-state simple"><h4>DEMON 谱</h4><p>运行仿真后展示 DEMON 分析结果</p></div>`,
     audio: firstCase ? renderAudioPane(firstCase) : `<div class="empty-state simple"><h4>音频试听</h4><p>运行仿真后可试听生成的噪声信号</p></div>`,
     files: firstCase ? renderFilesPane(firstCase) : `<div class="empty-state simple"><h4>输出文件</h4><p>运行仿真后可下载各类输出文件</p></div>`,
   };
@@ -500,7 +602,9 @@ function fillResultPanes(job) {
   } else {
     const geomPane = document.querySelector('.result-pane[data-pane="geometry"]');
     if (geomPane) {
-      geomPane.innerHTML = `<div class="empty-state simple"><h4>三维等效源几何</h4><p>运行仿真后展示几何分布</p></div>`;
+      geomPane.innerHTML = firstCase && firstCase.module === "environment"
+        ? `<div class="empty-state simple"><h4>环境噪声无目标几何</h4><p>背景噪声模块输出分量频谱、波形、时频谱和音频</p></div>`
+        : `<div class="empty-state simple"><h4>三维等效源几何</h4><p>运行仿真后展示几何分布</p></div>`;
     }
   }
 
@@ -578,7 +682,7 @@ async function startJob(e) {
         </svg>
       </div>
       <h3>仿真运行中</h3>
-      <p>后端正在运行 ${sourceLabels[state.selectedSource]} 仿真，请稍候...</p>
+      <p>后端正在运行 ${state.selectedModule === "environment" ? "海洋背景噪声" : sourceLabels[state.selectedSource]} 仿真，请稍候...</p>
     </div>
   `;
   setResultTab("overview");
@@ -604,8 +708,10 @@ async function startJob(e) {
 
 /* ===== Init ===== */
 function init() {
+  bindModuleButtons();
   bindSourceButtons();
   bindResultTabs();
+  setModule("target");
 
   $("simForm").addEventListener("submit", startJob);
   $("refreshBtn").addEventListener("click", () => {
